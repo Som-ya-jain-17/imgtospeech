@@ -1,9 +1,12 @@
 import streamlit as st
 import azure.cognitiveservices.speech as speechsdk
+import pytesseract
+from PIL import Image
 import tempfile
+import base64
 
 # =========================
-# AZURE CONFIG (YOUR KEYS)
+# AZURE CONFIG
 # =========================
 SPEECH_KEY = "2LNcNfQUrK6f0jj3eZ1ssHm1qALaeiXmn1foajdEdGGo9bxH06i5JQQJ99CEACYeBjFXJ3w3AAAYACOGrjDr"
 SPEECH_REGION = "eastus"
@@ -11,103 +14,73 @@ SPEECH_REGION = "eastus"
 # =========================
 # PAGE CONFIG
 # =========================
-st.set_page_config(
-    page_title="AI Text → Speech Studio",
-    layout="wide",
-    page_icon="🎧"
-)
+st.set_page_config(page_title="AI Speech Studio", layout="wide")
 
 # =========================
-# 🌌 PREMIUM DARK UI
+# 💎 ULTRA PREMIUM UI
 # =========================
 st.markdown("""
 <style>
-
 .stApp {
-    background: linear-gradient(135deg, #05060a, #0a0f1a, #05060a);
-    color: white;
+    background: linear-gradient(135deg,#04050a,#0a0f1a,#04050a);
+    color:white;
 }
 
 /* TITLE */
 .title {
     text-align:center;
-    font-size: 50px;
-    font-weight: 900;
+    font-size:48px;
+    font-weight:900;
     background: linear-gradient(90deg,#8b5cf6,#06b6d4,#ff2d95);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-/* SUBTITLE */
-.subtitle {
-    text-align:center;
-    color:#aaa;
-    margin-bottom:30px;
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
 }
 
 /* CARD */
 .card {
-    background: rgba(255,255,255,0.04);
-    border-radius: 20px;
-    padding: 30px;
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(139,92,246,0.3);
-    box-shadow: 0 0 40px rgba(6,182,212,0.2);
+    background: rgba(255,255,255,0.05);
+    padding:25px;
+    border-radius:20px;
+    backdrop-filter:blur(20px);
+    border:1px solid rgba(139,92,246,0.3);
 }
 
 /* BUTTON */
 .stButton>button {
     background: linear-gradient(90deg,#8b5cf6,#06b6d4,#ff2d95);
-    color: white;
-    border-radius: 12px;
-    padding: 12px 20px;
-    border: none;
-    font-weight: bold;
-    transition: 0.3s;
+    color:white;
+    border-radius:12px;
+    padding:10px 18px;
+    border:none;
 }
 
-.stButton>button:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 25px rgba(255,45,149,0.6);
-}
-
-/* TEXT AREA */
+/* TEXT */
 textarea {
-    background-color: #0b0f1a !important;
-    color: white !important;
-    border-radius: 10px !important;
+    background:#0b0f1a !important;
+    color:white !important;
 }
-
-/* SIDEBAR */
-section[data-testid="stSidebar"] {
-    background-color: #06090f;
-}
-
 </style>
 """, unsafe_allow_html=True)
 
 # =========================
 # HEADER
 # =========================
-st.markdown('<div class="title">🎧 AI Text → Speech Studio</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Generate Natural Voice using Azure AI</div>', unsafe_allow_html=True)
+st.markdown('<div class="title">🎧 AI Speech Studio</div>', unsafe_allow_html=True)
 
 # =========================
 # SIDEBAR
 # =========================
-st.sidebar.header("⚙️ Settings")
+st.sidebar.header("⚙️ Controls")
 
 voice = st.sidebar.selectbox(
-    "🎤 Select Voice",
-    [
-        "en-US-JennyNeural",
-        "en-IN-NeerjaNeural",
-        "en-GB-RyanNeural"
-    ]
+    "Voice",
+    ["en-US-JennyNeural", "en-IN-NeerjaNeural"]
 )
 
+speed = st.sidebar.slider("Speech Speed", 0.5, 2.0, 1.0)
+
 # =========================
-# FUNCTION
+# TEXT → SPEECH FUNCTION
 # =========================
 def text_to_speech(text):
     speech_config = speechsdk.SpeechConfig(
@@ -116,6 +89,17 @@ def text_to_speech(text):
     )
 
     speech_config.speech_synthesis_voice_name = voice
+
+    # Apply speed using SSML
+    ssml = f"""
+    <speak version='1.0' xml:lang='en-US'>
+        <voice name='{voice}'>
+            <prosody rate='{speed}'>
+                {text}
+            </prosody>
+        </voice>
+    </speak>
+    """
 
     audio_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav").name
 
@@ -126,45 +110,61 @@ def text_to_speech(text):
         audio_config=audio_config
     )
 
-    synthesizer.speak_text_async(text).get()
+    synthesizer.speak_ssml_async(ssml).get()
 
     return audio_file
+
+# =========================
+# OCR FUNCTION
+# =========================
+def extract_text_from_image(image):
+    text = pytesseract.image_to_string(image)
+    return text
 
 # =========================
 # MAIN UI
 # =========================
 st.markdown('<div class="card">', unsafe_allow_html=True)
 
-text_input = st.text_area(
-    "✍️ Enter your text",
-    height=180,
-    placeholder="Example: Hi, I am Somya Jain. Welcome to my AI project..."
-)
+tab1, tab2 = st.tabs(["✍️ Text Input", "🖼️ Image Upload"])
 
-col1, col2 = st.columns([1,1])
+# -------- TEXT TAB --------
+with tab1:
+    text_input = st.text_area("Enter Text", height=150)
 
-with col1:
-    generate = st.button("🚀 Generate Speech")
-
-with col2:
-    clear = st.button("🧹 Clear")
-
-if clear:
-    st.experimental_rerun()
-
-if generate:
-    if text_input.strip() == "":
-        st.warning("⚠️ Please enter text first")
-    else:
-        with st.spinner("⚡ Generating voice..."):
+    if st.button("🚀 Convert Text to Speech"):
+        if text_input.strip() == "":
+            st.warning("Enter text first")
+        else:
             audio_path = text_to_speech(text_input)
 
-        st.success("✅ Audio Generated!")
+            audio_bytes = open(audio_path, "rb").read()
+            st.audio(audio_bytes)
 
-        audio_file = open(audio_path, "rb")
-        audio_bytes = audio_file.read()
+            # download
+            st.download_button("⬇️ Download Audio", audio_bytes, "speech.wav")
 
-        st.audio(audio_bytes, format="audio/wav")
+# -------- IMAGE TAB --------
+with tab2:
+    uploaded_file = st.file_uploader("Upload Image", type=["png", "jpg", "jpeg"])
+
+    if uploaded_file:
+        image = Image.open(uploaded_file)
+        st.image(image, caption="Uploaded Image")
+
+        if st.button("🔍 Extract Text"):
+            extracted_text = extract_text_from_image(image)
+
+            st.text_area("Extracted Text", extracted_text, height=150)
+
+            if extracted_text.strip():
+                if st.button("🎧 Convert Extracted Text to Speech"):
+                    audio_path = text_to_speech(extracted_text)
+
+                    audio_bytes = open(audio_path, "rb").read()
+                    st.audio(audio_bytes)
+
+                    st.download_button("⬇️ Download Audio", audio_bytes, "image_speech.wav")
 
 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -172,8 +172,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 # FOOTER
 # =========================
 st.markdown("""
-<div style="text-align:center;margin-top:40px;color:#777;">
-🚀 Built with Streamlit + Azure AI <br>
-✨ By Somya Jain
+<div style="text-align:center;margin-top:30px;color:#777;">
+✨ AI Powered Speech + Vision App | By Somya Jain
 </div>
 """, unsafe_allow_html=True)
