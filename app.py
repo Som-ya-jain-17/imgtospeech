@@ -6,220 +6,189 @@ import tempfile
 import cv2
 import numpy as np
 
-# ---------------------------
-# Azure Config (UNCHANGED)
-# ---------------------------
+# =========================
+# AZURE CONFIG (KEEP SAME)
+# =========================
 SPEECH_KEY = "2LNcNfQUrK6f0jj3eZ1ssHm1qALaeiXmn1foajdEdGGo9bxH06i5JQQJ99CEACYeBjFXJ3w3AAAYACOGrjDr"
 SPEECH_REGION = "eastus"
 
-# ---------------------------
-# Page Config
-# ---------------------------
-st.set_page_config(page_title="AI Image Narrator", layout="wide")
+# =========================
+# PAGE CONFIG
+# =========================
+st.set_page_config(
+    page_title="AI Image Narrator",
+    layout="wide",
+    page_icon="🎧"
+)
 
-# ---------------------------
-# 🌌 ADVANCED UI (NEON + DARK)
-# ---------------------------
+# =========================
+# DARK FUTURISTIC UI
+# =========================
 st.markdown("""
 <style>
+
 body {
-    background: #0f0f1a;
+    background: radial-gradient(circle at top, #0b0b12, #05060a);
     color: white;
 }
 
-/* Hero Section */
+/* HERO */
 .hero {
     text-align: center;
-    padding: 30px;
+    padding: 20px;
 }
+
 .hero h1 {
-    font-size: 48px;
-    font-weight: bold;
-    background: linear-gradient(90deg, #ff00cc, #3333ff, #00ffff);
+    font-size: 40px;
+    background: linear-gradient(90deg, #7c3aed, #06b6d4, #ff2d95);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-}
-.hero p {
-    color: #aaa;
+    animation: glow 3s infinite alternate;
 }
 
-/* Cards */
+@keyframes glow {
+    from { filter: drop-shadow(0 0 5px #7c3aed); }
+    to { filter: drop-shadow(0 0 20px #06b6d4); }
+}
+
+.upload-box {
+    border: 2px dashed #7c3aed;
+    border-radius: 20px;
+    padding: 30px;
+    text-align: center;
+    background: rgba(255,255,255,0.03);
+    transition: 0.3s;
+}
+
+.upload-box:hover {
+    border-color: #06b6d4;
+    box-shadow: 0 0 20px #7c3aed;
+    transform: scale(1.02);
+}
+
 .card {
     background: rgba(255,255,255,0.05);
-    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.1);
     padding: 20px;
+    border-radius: 20px;
     backdrop-filter: blur(10px);
-    box-shadow: 0 0 20px rgba(255,0,255,0.2);
-    transition: 0.3s;
-}
-.card:hover {
-    transform: scale(1.02);
-    box-shadow: 0 0 30px rgba(0,255,255,0.5);
+    box-shadow: 0 0 25px rgba(124,58,237,0.2);
 }
 
-/* Buttons */
-.stButton>button {
-    background: linear-gradient(90deg, #ff00cc, #3333ff);
+button {
+    background: linear-gradient(90deg, #7c3aed, #06b6d4);
     color: white;
     border-radius: 12px;
-    border: none;
-    padding: 10px 20px;
-    box-shadow: 0 0 15px #ff00cc;
-}
-.stButton>button:hover {
-    box-shadow: 0 0 25px #00ffff;
 }
 
-/* Upload box */
-.upload-box {
-    border: 2px dashed #00ffff;
-    padding: 30px;
-    border-radius: 20px;
-    text-align: center;
-    transition: 0.3s;
-}
-.upload-box:hover {
-    border-color: #ff00cc;
-    box-shadow: 0 0 20px #ff00cc;
-}
-
-/* Sidebar */
-section[data-testid="stSidebar"] {
-    background: #121212;
-}
-
-/* Audio */
-audio {
-    width: 100%;
-    filter: drop-shadow(0 0 10px cyan);
-}
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------------------
-# 🌟 HERO
-# ---------------------------
+# =========================
+# HEADER
+# =========================
 st.markdown("""
 <div class="hero">
-<h1>🚀 Turn Images Into Voice with AI</h1>
-<p>Upload an image → Extract text → Listen instantly 🎧</p>
+    <h1>Transform Images into Natural Speech using AI</h1>
+    <p>Cyber AI Studio • Smart Vision to Voice Engine</p>
 </div>
 """, unsafe_allow_html=True)
 
-# ---------------------------
-# ⚙️ SIDEBAR
-# ---------------------------
+# =========================
+# SIDEBAR CONTROLS
+# =========================
 st.sidebar.title("⚙️ AI Controls")
 
 voice = st.sidebar.selectbox(
-    "🎤 Voice",
+    "Voice",
     ["en-US-JennyNeural", "en-IN-NeerjaNeural"]
 )
 
-speed = st.sidebar.slider("⚡ Speed", 0.5, 2.0, 1.0)
+speed = st.sidebar.slider("Speed", 0.5, 2.0, 1.0)
 
-# ---------------------------
-# 🧠 OCR FUNCTION (FIXED)
-# ---------------------------
+# =========================
+# OCR FIX (IMPORTANT PART)
+# =========================
 def extract_text(image):
     img = np.array(image)
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    gray = cv2.convertScaleAbs(gray, alpha=1.5, beta=0)
-    blur = cv2.GaussianBlur(gray, (5,5), 0)
+
+    # noise removal
+    blur = cv2.GaussianBlur(gray, (3,3), 0)
+
+    # threshold for better text detection
     thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
-    return pytesseract.image_to_string(thresh, config="--psm 6")
+    # OCR config (VERY IMPORTANT)
+    config = r'--oem 3 --psm 6'
 
-# ---------------------------
-# 🔊 TEXT TO SPEECH (FIXED)
-# ---------------------------
-def text_to_speech(text):
+    text = pytesseract.image_to_string(thresh, config=config)
+
+    return text
+
+# =========================
+# TEXT TO SPEECH
+# =========================
+def speak(text):
     speech_config = speechsdk.SpeechConfig(
         subscription=SPEECH_KEY,
         region=SPEECH_REGION
     )
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
-        filename = f.name
+    speech_config.speech_synthesis_voice_name = voice
+    speech_config.set_speech_synthesis_rate(str(speed))
 
-    audio_config = speechsdk.audio.AudioOutputConfig(filename=filename)
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
+        file = f.name
+
+    audio_config = speechsdk.audio.AudioOutputConfig(filename=file)
 
     synthesizer = speechsdk.SpeechSynthesizer(
         speech_config=speech_config,
         audio_config=audio_config
     )
 
-    rate = int((speed - 1.0) * 100)
+    synthesizer.speak_text_async(text).get()
 
-    ssml = f"""
-    <speak version='1.0' xml:lang='en-US'>
-        <voice name='{voice}'>
-            <prosody rate='{rate}%'>
-                {text}
-            </prosody>
-        </voice>
-    </speak>
-    """
+    return file
 
-    synthesizer.speak_ssml_async(ssml).get()
-
-    return filename
-
-# ---------------------------
-# 📤 UPLOAD SECTION
-# ---------------------------
+# =========================
+# MAIN UI
+# =========================
 st.markdown('<div class="card">', unsafe_allow_html=True)
 
-uploaded_file = st.file_uploader("📤 Drag & Drop Image", type=["jpg", "png", "jpeg"])
+uploaded_file = st.file_uploader("📤 Upload Image (Drag & Drop Enabled)", type=["png","jpg","jpeg"])
 
-st.markdown('</div>', unsafe_allow_html=True)
-
-# ---------------------------
-# 📸 IMAGE + OUTPUT
-# ---------------------------
 if uploaded_file:
+
     image = Image.open(uploaded_file)
+    st.image(image, caption="Uploaded Image", use_container_width=True)
 
-    col1, col2 = st.columns(2)
+    if st.button("🚀 Analyze Image & Convert to Speech"):
 
-    with col1:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.image(image, caption="📸 Uploaded Image")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with col2:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-
-        if st.button("🚀 Analyze Image"):
-            progress = st.progress(0)
-
-            for i in range(100):
-                progress.progress(i + 1)
-
-            st.info("🤖 Analyzing Image...")
+        with st.spinner("🧠 AI is analyzing image..."):
 
             text = extract_text(image)
 
-            if text.strip() == "":
-                st.error("⚠️ No readable text found")
+            # fallback fix
+            if len(text.strip()) < 2:
+                st.error("❌ No proper text detected. Try clearer image.")
             else:
                 st.success("📝 Extracted Text")
                 st.write(text)
 
-                audio = text_to_speech(text)
+                audio = speak(text)
 
                 st.audio(audio)
 
-                with open(audio, "rb") as f:
-                    st.download_button("⬇️ Download Audio", f, "speech.wav")
+st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown('</div>', unsafe_allow_html=True)
-
-# ---------------------------
-# ✨ FOOTER
-# ---------------------------
-st.markdown(
-    "<p style='text-align:center;margin-top:40px;color:#888;'>✨ Developed by Somya Jain</p>",
-    unsafe_allow_html=True
-)
+# =========================
+# FOOTER
+# =========================
+st.markdown("""
+<div style="text-align:center; margin-top:30px; color:#aaa;">
+✨ Developed by Somya Jain
+</div>
+""", unsafe_allow_html=True)
