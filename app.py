@@ -6,8 +6,6 @@ import tempfile
 import cv2
 import numpy as np
 import re
-import time
-from datetime import datetime
 
 # =========================
 # AZURE CONFIG (UNCHANGED)
@@ -18,107 +16,48 @@ SPEECH_REGION = "eastus"
 # =========================
 # PAGE CONFIG
 # =========================
-st.set_page_config(
-    page_title="AI Image Voice Pro",
-    layout="wide",
-    page_icon="🎧"
-)
+st.set_page_config(page_title="AI Image to Speech", layout="wide")
 
 # =========================
-# HISTORY STORAGE (SAFE ADDITION)
-# =========================
-if "history" not in st.session_state:
-    st.session_state.history = []
-
-# =========================
-# 🎨 PREMIUM DARK UI
+# SIMPLE DARK UI
 # =========================
 st.markdown("""
 <style>
-
-/* DARK BACKGROUND */
-.stApp {
-    background: radial-gradient(circle at top, #05060a, #0a0f1a, #05060a);
+body {
+    background-color: #0b0f1a;
     color: white;
 }
-
-/* TITLE */
 .title {
-    text-align: center;
-    font-size: 42px;
-    font-weight: 800;
-    background: linear-gradient(90deg,#7c3aed,#06b6d4,#ff2d95);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    text-align:center;
+    font-size:40px;
+    font-weight:bold;
+    color:#7c3aed;
 }
-
-/* GLASS CARD */
 .card {
     background: rgba(255,255,255,0.05);
-    backdrop-filter: blur(18px);
-    border-radius: 18px;
-    padding: 18px;
-    border: 1px solid rgba(124,58,237,0.25);
-    box-shadow: 0 0 25px rgba(124,58,237,0.2);
-    margin-bottom: 15px;
+    padding:20px;
+    border-radius:15px;
+    margin-top:10px;
 }
-
-/* BUTTON */
-.stButton>button {
-    background: linear-gradient(90deg,#7c3aed,#06b6d4);
-    color: white;
-    border-radius: 10px;
-    padding: 10px 15px;
-    border: none;
-    box-shadow: 0 0 15px rgba(6,182,212,0.4);
-}
-
-.stButton>button:hover {
-    transform: scale(1.03);
-}
-
-/* UPLOADER */
-[data-testid="stFileUploader"] {
-    border: 2px dashed #7c3aed;
-    border-radius: 15px;
-    padding: 10px;
-}
-
-/* AUDIO */
-audio {
-    width: 100%;
-    border-radius: 10px;
-    filter: drop-shadow(0 0 10px cyan);
-}
-
 </style>
 """, unsafe_allow_html=True)
 
-# =========================
-# HEADER
-# =========================
-st.markdown('<div class="title">🎧 AI Image → Speech Converter Pro</div>', unsafe_allow_html=True)
-st.write("Upload image → Extract text → Listen in AI voice")
+st.markdown('<div class="title">🎧 AI Image → Speech Converter</div>', unsafe_allow_html=True)
 
 # =========================
-# SIDEBAR CONTROLS (SAFE EXTENSION)
+# SIDEBAR
 # =========================
-st.sidebar.title("⚙️ AI Controls")
-
-language = st.sidebar.selectbox("Language", ["English", "Hindi"])
-emotion = st.sidebar.selectbox("Emotion Mode", ["Neutral", "Happy", "Calm", "Storytelling", "Robot"])
+lang = st.sidebar.selectbox("Language", ["English", "Hindi"])
 
 voice_map = {
     "English": "en-US-JennyNeural",
     "Hindi": "hi-IN-SwaraNeural"
 }
 
-voice = voice_map[language]
-
-speed = st.sidebar.slider("Speech Speed", 0.5, 2.0, 1.0)
+VOICE = voice_map[lang]
 
 # =========================
-# 🧠 TEXT CLEANING (MAIN FIX)
+# CLEAN TEXT (IMPORTANT FIX)
 # =========================
 def clean_text(text):
     text = text.replace("\n", " ")
@@ -127,12 +66,14 @@ def clean_text(text):
     return text
 
 # =========================
-# OCR (IMPROVED BUT SAFE)
+# OCR FUNCTION (STABLE)
 # =========================
 def extract_text(image):
     img = np.array(image)
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    # improve readability
     gray = cv2.GaussianBlur(gray, (3,3), 0)
 
     thresh = cv2.adaptiveThreshold(
@@ -149,7 +90,7 @@ def extract_text(image):
     return text
 
 # =========================
-# SPEECH (FIXED + STABLE)
+# AZURE SPEECH (CORRECT WAY)
 # =========================
 def speak(text):
 
@@ -158,8 +99,9 @@ def speak(text):
         region=SPEECH_REGION
     )
 
-    speech_config.speech_synthesis_voice_name = voice
+    speech_config.speech_synthesis_voice_name = VOICE
 
+    # output file
     audio_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav").name
     audio_config = speechsdk.audio.AudioOutputConfig(filename=audio_file)
 
@@ -168,25 +110,12 @@ def speak(text):
         audio_config=audio_config
     )
 
-    # SSML for speed control
-    rate = int((speed - 1.0) * 100)
-
-    ssml = f"""
-    <speak version='1.0'>
-        <voice name='{voice}'>
-            <prosody rate='{rate}%'>
-                {text}
-            </prosody>
-        </voice>
-    </speak>
-    """
-
-    synthesizer.speak_ssml_async(ssml).get()
+    synthesizer.speak_text_async(text).get()
 
     return audio_file
 
 # =========================
-# MAIN UI
+# UI
 # =========================
 st.markdown('<div class="card">', unsafe_allow_html=True)
 
@@ -199,51 +128,28 @@ if uploaded_file:
 
     if st.button("🚀 Convert to Speech"):
 
-        with st.spinner("🧠 AI Processing..."):
+        raw_text = extract_text(image)
+        text = clean_text(raw_text)
 
-            raw_text = extract_text(image)
+        if text.strip() == "":
+            st.error("❌ No text detected. Try a clearer image.")
+        else:
+            st.success("📝 Extracted Text")
+            st.write(text)
 
-            text = clean_text(raw_text)
+            audio_path = speak(text)
 
-            if not text.strip():
-                st.error("❌ No readable text found")
-            else:
-                st.success("📝 Extracted Text")
-                st.write(text)
-
-                audio = speak(text)
-
-                with open(audio, "rb") as f:
-                    st.audio(f.read(), format="audio/wav")
-
-                # =========================
-                # HISTORY SAVE (SAFE ADDITION)
-                # =========================
-                st.session_state.history.append({
-                    "text": text,
-                    "time": datetime.now().strftime("%H:%M:%S")
-                })
+            # FIX: Streamlit audio always works like this
+            with open(audio_path, "rb") as f:
+                st.audio(f.read(), format="audio/wav")
 
 st.markdown("</div>", unsafe_allow_html=True)
-
-# =========================
-# HISTORY SECTION (NEW FEATURE)
-# =========================
-st.markdown("### 📜 History")
-
-for item in reversed(st.session_state.history[-5:]):
-    st.markdown(f"""
-    <div class="card">
-        ⏱️ {item['time']} <br>
-        📝 {item['text']}
-    </div>
-    """, unsafe_allow_html=True)
 
 # =========================
 # FOOTER
 # =========================
 st.markdown("""
-<div style="text-align:center;color:#888;margin-top:30px;">
+<div style="text-align:center;color:gray;margin-top:30px;">
 ✨ Developed by Somya Jain
 </div>
 """, unsafe_allow_html=True)
