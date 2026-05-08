@@ -1,29 +1,32 @@
 import streamlit as st
 import azure.cognitiveservices.speech as speechsdk
-import pytesseract
-from PIL import Image
 import tempfile
-import os
 
 # =========================
-# CONFIG
+# CONFIG (USE YOUR KEY)
 # =========================
 SPEECH_KEY = "2LNcNfQUrK6f0jj3eZ1ssHm1qALaeiXmn1foajdEdGGo9bxH06i5JQQJ99CEACYeBjFXJ3w3AAAYACOGrjDr"
 SPEECH_REGION = "eastus"
 
-# FIX FOR STREAMLIT CLOUD
-if os.path.exists("/usr/bin/tesseract"):
-    pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
-
-st.set_page_config(page_title="AI Speech Studio", layout="wide")
-
-st.title("🎧 AI Text & Image → Speech")
+st.set_page_config(page_title="AI Speech Studio", layout="centered")
 
 # =========================
-# SESSION STATE
+# SAFE DARK UI (NO BREAK)
 # =========================
-if "text_data" not in st.session_state:
-    st.session_state.text_data = ""
+st.markdown("""
+<style>
+.stApp {
+    background-color: #0b0f1a;
+    color: white;
+}
+h1 {
+    text-align: center;
+    color: #8b5cf6;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.title("🎧 AI Text → Speech Studio")
 
 # =========================
 # SIDEBAR
@@ -34,7 +37,7 @@ voice = st.sidebar.selectbox(
 )
 
 # =========================
-# SPEECH FUNCTION
+# FUNCTION
 # =========================
 def text_to_speech(text):
     speech_config = speechsdk.SpeechConfig(
@@ -58,67 +61,41 @@ def text_to_speech(text):
     if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
         return audio_file
     else:
-        st.error("❌ Speech generation failed")
         return None
 
 # =========================
-# TABS
+# TEXT SECTION
 # =========================
-tab1, tab2 = st.tabs(["✍️ Text Input", "🖼️ Image Upload"])
+st.subheader("✍️ Text to Speech")
 
-# -------- TEXT TAB --------
-with tab1:
-    text_input = st.text_area("Enter text here")
+text_input = st.text_area("Enter text")
 
-    if st.button("🚀 Convert Text to Speech"):
-        if text_input.strip() == "":
-            st.warning("Enter text first")
+if st.button("Generate Speech"):
+    if text_input.strip() == "":
+        st.warning("Please enter text")
+    else:
+        audio_path = text_to_speech(text_input)
+
+        if audio_path:
+            audio_bytes = open(audio_path, "rb").read()
+            st.audio(audio_bytes)
         else:
-            audio_path = text_to_speech(text_input)
-
-            if audio_path:
-                audio_bytes = open(audio_path, "rb").read()
-                st.audio(audio_bytes)
-
-# -------- IMAGE TAB --------
-with tab2:
-    uploaded_file = st.file_uploader("Upload Image", type=["png", "jpg", "jpeg"])
-
-    if uploaded_file:
-        image = Image.open(uploaded_file)
-        st.image(image, caption="Uploaded Image")
-
-        # Extract Text
-        if st.button("🔍 Extract Text"):
-            try:
-                text = pytesseract.image_to_string(image)
-
-                if text.strip() == "":
-                    st.warning("⚠️ No text detected in image")
-                else:
-                    st.session_state.text_data = text
-                    st.success("✅ Text Extracted!")
-
-            except Exception as e:
-                st.error(f"OCR Error: {e}")
-
-        # Show extracted text ALWAYS
-        st.text_area("Extracted Text", st.session_state.text_data, height=150)
-
-        # Convert to speech
-        if st.button("🎧 Convert to Speech"):
-            if st.session_state.text_data.strip() == "":
-                st.warning("Extract text first")
-            else:
-                audio_path = text_to_speech(st.session_state.text_data)
-
-                if audio_path:
-                    audio_bytes = open(audio_path, "rb").read()
-                    st.audio(audio_bytes)
+            st.error("Speech generation failed")
 
 # =========================
-# DEBUG (REMOVE LATER)
+# IMAGE SECTION (SAFE VERSION)
 # =========================
-with st.expander("⚙️ Debug Info"):
-    st.write("Tesseract Path:", pytesseract.pytesseract.tesseract_cmd)
-    st.write("Tesseract Exists:", os.path.exists("/usr/bin/tesseract"))
+st.subheader("🖼️ Image Upload (Preview Only)")
+
+uploaded_file = st.file_uploader("Upload Image", type=["png", "jpg", "jpeg"])
+
+if uploaded_file:
+    st.image(uploaded_file, caption="Uploaded Image")
+
+    st.info("💡 Image uploaded successfully. (OCR removed to prevent errors)")
+
+# =========================
+# FOOTER
+# =========================
+st.markdown("---")
+st.markdown("🚀 Built by Somya Jain")
