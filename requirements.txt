@@ -1,6 +1,2 @@
 streamlit
 azure-cognitiveservices-speech
-pillow
-pytesseract
-opencv-python-headless
-numpy
