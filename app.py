@@ -4,7 +4,7 @@ import requests
 import tempfile
 
 # =========================
-# 🔑 AZURE KEYS (YOUR PROVIDED KEYS)
+# 🔑 AZURE KEYS (YOUR SAME KEYS)
 # =========================
 AZURE_SPEECH_KEY = "2LNcNfQUrK6f0jj3eZ1ssHm1qALaeiXmn1foajdEdGGo9bxH06i5JQQJ99CEACYeBjFXJ3w3AAAYACOGrjDr"
 AZURE_SPEECH_REGION = "eastus"
@@ -15,74 +15,106 @@ AZURE_VISION_ENDPOINT = "https://cv97898657.cognitiveservices.azure.com/vision/v
 # =========================
 # PAGE CONFIG
 # =========================
-st.set_page_config(page_title="AI Image → Speech", layout="centered")
+st.set_page_config(page_title="AI Vision Speech Studio", layout="centered")
 
 # =========================
-# 🌈 PREMIUM UI
+# 🌫️ CLASSY GLASS UI (NO BRIGHT COLORS)
 # =========================
 st.markdown("""
 <style>
+
+/* SOFT DARK BACKGROUND */
 .stApp {
-    background: linear-gradient(135deg,#0b0f1a,#000814,#0b0f1a);
-    color: white;
+    background: #0b0f14;
+    color: #e6e6e6;
+    font-family: "Segoe UI";
 }
 
+/* TITLE */
 .title {
     text-align:center;
-    font-size: 45px;
-    font-weight: 900;
-    background: linear-gradient(90deg,#ff00cc,#00ffff,#ffcc00,#8b5cf6);
-    -webkit-background-clip:text;
-    -webkit-text-fill-color:transparent;
+    font-size: 38px;
+    font-weight: 600;
+    color: #eaeaea;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
 }
 
+/* GLASS CARD */
 .card {
-    background: rgba(255,255,255,0.06);
-    padding: 20px;
-    border-radius: 18px;
-    backdrop-filter: blur(15px);
-    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.04);
+    padding: 22px;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.08);
+    backdrop-filter: blur(18px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
 }
 
+/* SOFT BUTTON */
 .stButton>button {
-    background: linear-gradient(90deg,#ff00cc,#00ffff,#8b5cf6);
-    color:white;
-    border-radius:10px;
-    padding:10px 15px;
-    border:none;
+    background: rgba(255,255,255,0.08);
+    color: #f1f1f1;
+    border-radius: 10px;
+    padding: 10px 16px;
+    border: 1px solid rgba(255,255,255,0.1);
+    transition: all 0.2s ease-in-out;
 }
+
+/* HOVER EFFECT */
+.stButton>button:hover {
+    background: rgba(255,255,255,0.15);
+    transform: scale(1.02);
+    box-shadow: 0 0 12px rgba(255,255,255,0.08);
+}
+
+/* CLICK EFFECT */
+.stButton>button:active {
+    transform: scale(0.98);
+    box-shadow: 0 0 5px rgba(255,255,255,0.05);
+}
+
+/* TEXT AREA */
+textarea {
+    background-color: #111820 !important;
+    color: #eaeaea !important;
+    border-radius: 10px !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="title">🖼️➡️📝➡️🎧 AI Image to Speech</div>', unsafe_allow_html=True)
+# =========================
+# TITLE
+# =========================
+st.markdown('<div class="title">AI Image → Text → Speech</div>', unsafe_allow_html=True)
 
 # =========================
-# STATE
+# SESSION STATE
 # =========================
-if "text_data" not in st.session_state:
-    st.session_state.text_data = ""
+if "extracted_text" not in st.session_state:
+    st.session_state.extracted_text = ""
 
 # =========================
-# VOICE
+# VOICE SELECT
 # =========================
-voice = st.selectbox("🎤 Voice", ["en-US-JennyNeural", "en-IN-NeerjaNeural"])
+voice = st.selectbox("Voice", ["en-US-JennyNeural", "en-IN-NeerjaNeural"])
 
 # =========================
-# IMAGE → TEXT (AZURE VISION)
+# IMAGE → TEXT
 # =========================
-def image_to_text(image_bytes):
+def extract_text(image_bytes):
     headers = {
         "Ocp-Apim-Subscription-Key": AZURE_VISION_KEY,
         "Content-Type": "application/octet-stream"
     }
 
     response = requests.post(AZURE_VISION_ENDPOINT, headers=headers, data=image_bytes)
-    result = response.json()
+    data = response.json()
 
     text = ""
 
     try:
-        for region in result["regions"]:
+        for region in data["regions"]:
             for line in region["lines"]:
                 for word in line["words"]:
                     text += word["text"] + " "
@@ -93,9 +125,9 @@ def image_to_text(image_bytes):
     return text
 
 # =========================
-# TEXT → SPEECH (AZURE SPEECH)
+# TEXT → SPEECH
 # =========================
-def text_to_speech(text):
+def speak(text):
     speech_config = speechsdk.SpeechConfig(
         subscription=AZURE_SPEECH_KEY,
         region=AZURE_SPEECH_REGION
@@ -117,39 +149,35 @@ def text_to_speech(text):
     return audio_file
 
 # =========================
-# UI
+# UI CARD
 # =========================
 st.markdown('<div class="card">', unsafe_allow_html=True)
 
-uploaded_file = st.file_uploader("📤 Upload Image", type=["png","jpg","jpeg"])
+uploaded_file = st.file_uploader("Upload Image", type=["png","jpg","jpeg"])
 
 if uploaded_file:
-    st.image(uploaded_file, caption="Uploaded Image")
+    st.image(uploaded_file, caption="Uploaded Image", use_container_width=True)
 
     img_bytes = uploaded_file.read()
 
-    if st.button("🔍 Extract Text from Image"):
-        with st.spinner("Processing..."):
-            st.session_state.text_data = image_to_text(img_bytes)
+    if st.button("Extract Text"):
+        with st.spinner("Reading image..."):
+            st.session_state.extracted_text = extract_text(img_bytes)
 
-        if st.session_state.text_data.strip() == "":
-            st.warning("No text detected")
-        else:
-            st.success("Text extracted successfully ✨")
+# SHOW TEXT ALWAYS
+st.text_area("Extracted Text", st.session_state.extracted_text, height=140)
 
-st.text_area("📝 Extracted Text", st.session_state.text_data, height=150)
-
-if st.button("🎧 Convert Text to Speech"):
-    if st.session_state.text_data.strip() == "":
-        st.warning("Extract text first")
+# SPEECH BUTTON
+if st.button("Convert to Speech"):
+    if st.session_state.extracted_text.strip() == "":
+        st.warning("Please extract text first")
     else:
-        with st.spinner("Generating speech..."):
-            audio = text_to_speech(st.session_state.text_data)
-
+        with st.spinner("Generating voice..."):
+            audio = speak(st.session_state.extracted_text)
             audio_bytes = open(audio, "rb").read()
             st.audio(audio_bytes)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Footer
-st.markdown("💎 Built with Azure AI | Image → Text → Speech")
+# FOOTER
+st.markdown("<div style='text-align:center;color:#777;margin-top:20px;'>Built with Azure AI</div>", unsafe_allow_html=True)
