@@ -2,5 +2,4 @@ streamlit
 azure-cognitiveservices-speech
 Pillow
 pytesseract
-opencv-python
 numpy
