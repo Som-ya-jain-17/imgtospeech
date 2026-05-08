@@ -1,5 +1,4 @@
 streamlit
+requests
 azure-cognitiveservices-speech
 Pillow
-pytesseract
-numpy
