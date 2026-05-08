@@ -1,4 +1,2 @@
 streamlit
 azure-cognitiveservices-speech
-pytesseract
-pillow
