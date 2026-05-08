@@ -18,80 +18,127 @@ SPEECH_REGION = "eastus"
 st.set_page_config(page_title="AI Image Narrator", layout="wide")
 
 # ---------------------------
-# UI (Glassmorphism + Gradient)
+# 🌌 ADVANCED UI (NEON + DARK)
 # ---------------------------
 st.markdown("""
 <style>
 body {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-}
-.main-card {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(15px);
-    padding: 30px;
-    border-radius: 20px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-}
-h1 {
-    text-align: center;
+    background: #0f0f1a;
     color: white;
 }
-.tagline {
+
+/* Hero Section */
+.hero {
     text-align: center;
-    color: #ddd;
+    padding: 30px;
 }
+.hero h1 {
+    font-size: 48px;
+    font-weight: bold;
+    background: linear-gradient(90deg, #ff00cc, #3333ff, #00ffff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.hero p {
+    color: #aaa;
+}
+
+/* Cards */
+.card {
+    background: rgba(255,255,255,0.05);
+    border-radius: 20px;
+    padding: 20px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 20px rgba(255,0,255,0.2);
+    transition: 0.3s;
+}
+.card:hover {
+    transform: scale(1.02);
+    box-shadow: 0 0 30px rgba(0,255,255,0.5);
+}
+
+/* Buttons */
 .stButton>button {
-    background: linear-gradient(90deg, #ff7eb3, #ff758c);
+    background: linear-gradient(90deg, #ff00cc, #3333ff);
     color: white;
     border-radius: 12px;
+    border: none;
+    padding: 10px 20px;
+    box-shadow: 0 0 15px #ff00cc;
+}
+.stButton>button:hover {
+    box-shadow: 0 0 25px #00ffff;
+}
+
+/* Upload box */
+.upload-box {
+    border: 2px dashed #00ffff;
+    padding: 30px;
+    border-radius: 20px;
+    text-align: center;
+    transition: 0.3s;
+}
+.upload-box:hover {
+    border-color: #ff00cc;
+    box-shadow: 0 0 20px #ff00cc;
+}
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background: #121212;
+}
+
+/* Audio */
+audio {
+    width: 100%;
+    filter: drop-shadow(0 0 10px cyan);
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------------------
-# Header
+# 🌟 HERO
 # ---------------------------
-st.markdown("<h1>🎧 AI Image Narrator</h1>", unsafe_allow_html=True)
-st.markdown('<p class="tagline">Turn images into meaningful audio instantly</p>', unsafe_allow_html=True)
+st.markdown("""
+<div class="hero">
+<h1>🚀 Turn Images Into Voice with AI</h1>
+<p>Upload an image → Extract text → Listen instantly 🎧</p>
+</div>
+""", unsafe_allow_html=True)
 
 # ---------------------------
-# Sidebar (Settings)
+# ⚙️ SIDEBAR
 # ---------------------------
-st.sidebar.title("⚙️ AI Settings")
+st.sidebar.title("⚙️ AI Controls")
 
 voice = st.sidebar.selectbox(
-    "Voice",
+    "🎤 Voice",
     ["en-US-JennyNeural", "en-IN-NeerjaNeural"]
 )
 
-speed = st.sidebar.slider("Speech Speed", 0.5, 2.0, 1.0)
+speed = st.sidebar.slider("⚡ Speed", 0.5, 2.0, 1.0)
 
 # ---------------------------
-# OCR FUNCTION (FIXED)
+# 🧠 OCR FUNCTION (FIXED)
 # ---------------------------
 def extract_text(image):
     img = np.array(image)
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    # Improve OCR accuracy
-    thresh = cv2.adaptiveThreshold(
-        gray, 255,
-        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY, 11, 2
-    )
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    gray = cv2.convertScaleAbs(gray, alpha=1.5, beta=0)
+    blur = cv2.GaussianBlur(gray, (5,5), 0)
+    thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
     return pytesseract.image_to_string(thresh, config="--psm 6")
 
 # ---------------------------
-# Speech Function
+# 🔊 TEXT TO SPEECH (FIXED)
 # ---------------------------
 def text_to_speech(text):
     speech_config = speechsdk.SpeechConfig(
         subscription=SPEECH_KEY,
         region=SPEECH_REGION
     )
-    speech_config.speech_synthesis_voice_name = voice
-    speech_config.set_speech_synthesis_rate(str(speed))
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
         filename = f.name
@@ -103,53 +150,76 @@ def text_to_speech(text):
         audio_config=audio_config
     )
 
-    synthesizer.speak_text_async(text).get()
+    rate = int((speed - 1.0) * 100)
+
+    ssml = f"""
+    <speak version='1.0' xml:lang='en-US'>
+        <voice name='{voice}'>
+            <prosody rate='{rate}%'>
+                {text}
+            </prosody>
+        </voice>
+    </speak>
+    """
+
+    synthesizer.speak_ssml_async(ssml).get()
+
     return filename
 
 # ---------------------------
-# Main Card
+# 📤 UPLOAD SECTION
 # ---------------------------
-st.markdown('<div class="main-card">', unsafe_allow_html=True)
+st.markdown('<div class="card">', unsafe_allow_html=True)
 
 uploaded_file = st.file_uploader("📤 Drag & Drop Image", type=["jpg", "png", "jpeg"])
 
+st.markdown('</div>', unsafe_allow_html=True)
+
+# ---------------------------
+# 📸 IMAGE + OUTPUT
+# ---------------------------
 if uploaded_file:
     image = Image.open(uploaded_file)
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.image(image, caption="Uploaded Image")
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.image(image, caption="📸 Uploaded Image")
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with col2:
-        if st.button("🚀 Analyze & Convert"):
-            with st.spinner("🤖 AI is analyzing image..."):
+        st.markdown('<div class="card">', unsafe_allow_html=True)
 
-                text = extract_text(image)
+        if st.button("🚀 Analyze Image"):
+            progress = st.progress(0)
 
-                if text.strip() == "":
-                    st.error("⚠️ Couldn't detect text. Try clearer image.")
-                else:
-                    st.success("📝 Extracted Text")
-                    st.write(text)
+            for i in range(100):
+                progress.progress(i + 1)
 
-                    audio = text_to_speech(text)
+            st.info("🤖 Analyzing Image...")
 
-                    st.audio(audio)
+            text = extract_text(image)
 
-                    with open(audio, "rb") as f:
-                        st.download_button(
-                            "⬇️ Download Audio",
-                            f,
-                            file_name="speech.wav"
-                        )
+            if text.strip() == "":
+                st.error("⚠️ No readable text found")
+            else:
+                st.success("📝 Extracted Text")
+                st.write(text)
 
-st.markdown('</div>', unsafe_allow_html=True)
+                audio = text_to_speech(text)
+
+                st.audio(audio)
+
+                with open(audio, "rb") as f:
+                    st.download_button("⬇️ Download Audio", f, "speech.wav")
+
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------------------------
-# Footer
+# ✨ FOOTER
 # ---------------------------
 st.markdown(
-    "<p style='text-align:center;color:white;margin-top:20px;'>✨ Developed by Somya Jain</p>",
+    "<p style='text-align:center;margin-top:40px;color:#888;'>✨ Developed by Somya Jain</p>",
     unsafe_allow_html=True
 )
